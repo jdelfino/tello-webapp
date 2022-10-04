@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Synchronized Slider</title>
+	<link rel="stylesheet" href="/static/css/bootstrap.min.css">
+<script src="/static/js/socket.io.4.5.0.min.js"></script>
+
+    <script>
+document.addEventListener("DOMContentLoaded", function(event) {
+  // sending a connect request to the server.
+  var socket = io.connect('http://127.0.0.1:5000');
+  console.log("connected")
+
+  const image_element=document.getElementById('image1');
+
+	socket.on('VS', function (data) {
+    console.log("VS");
+		image_element.src="data:image/jpeg;base64," + data;
+  });
+
+	socket.on('update value', function(msg) {
+     console.log('value updated', msg);
+     document.querySelector('#counter').textContent = msg.msg
+	});
+
+	socket.on('after connect', function(msg){
+    console.log('After connect', msg);
+	})
+
+	socket.on("connect_error", (err) => {
+  	console.log(`connect_error due to ${err.message}`);
+	});
+
+	document.querySelector('#launch-button').addEventListener("click", function () {
+		socket.emit('launch', {});
+	});
+
+	document.querySelector('#stop-button').addEventListener("click", function () {
+		socket.emit('stop', {});
+	});
+
+	document.querySelector('#emergency-stop-button').addEventListener("click", function () {
+		socket.emit('emergency_stop', {});
+	});
+
+});
+    </script>
+</head>
+<body>
+	<div id="counter">
+		0
+	</div>
+	<button id="launch-button" type="button" class="btn btn-primary">Launch</button>
+	<button id="stop-button" type="button" class="btn btn-warning">Stop</button>
+	<button id="emergency-stop-button" type="button" class="btn btn-danger">Emergency Stop</button>
+  <img id="image1">
+</body>
+</html>
