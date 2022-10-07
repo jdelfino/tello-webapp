@@ -1,59 +1,93 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-	<meta charset="UTF-8">
-	<title>Synchronized Slider</title>
-	<link rel="stylesheet" href="/static/css/bootstrap.min.css">
-<script src="/static/js/socket.io.4.5.0.min.js"></script>
+	<!DOCTYPE html>
+	<html lang="en">
+	<head>
+		<meta charset="UTF-8">
+		<title>Synchronized Slider</title>
+		<link rel="stylesheet" href="static/css/bootstrap.min.css">
+		<link rel="stylesheet" href="static/css/style.css">
+		<script src="static/js/socket.io.4.5.0.min.js"></script>
+		<script src="static/js/plotly-2.14.0.min.js"></script>
+		<script src="static/js/script.js"></script>
+	</head>
+	<body>
+	<div class="container-fluid">
+		<div class="row justify-content-center">
+			<h1>When Drones Attack</h1>
+		</div>
 
-    <script>
-document.addEventListener("DOMContentLoaded", function(event) {
-  // sending a connect request to the server.
-  var socket = io.connect('http://127.0.0.1:5000');
-  console.log("connected")
-
-  const image_element=document.getElementById('image1');
-
-	socket.on('VS', function (data) {
-    console.log("VS");
-		image_element.src="data:image/jpeg;base64," + data;
-  });
-
-	socket.on('update value', function(msg) {
-     console.log('value updated', msg);
-     document.querySelector('#counter').textContent = msg.msg
-	});
-
-	socket.on('after connect', function(msg){
-    console.log('After connect', msg);
-	})
-
-	socket.on("connect_error", (err) => {
-  	console.log(`connect_error due to ${err.message}`);
-	});
-
-	document.querySelector('#launch-button').addEventListener("click", function () {
-		socket.emit('launch', {});
-	});
-
-	document.querySelector('#stop-button').addEventListener("click", function () {
-		socket.emit('stop', {});
-	});
-
-	document.querySelector('#emergency-stop-button').addEventListener("click", function () {
-		socket.emit('emergency_stop', {});
-	});
-
-});
-    </script>
-</head>
-<body>
-	<div id="counter">
-		0
+		<div class="row">
+			<div class="col-2">
+					<button id="emergency-stop-button" style="display:none" type="button" class="btn btn-danger btn-block emergency-button">Emergency Stop</button>
+					<a id="dl-drone-video-button" style="display:none" type="button" class="btn btn-success btn-block btn-sm download-button">Download drone video</a>
+					<a id="dl-cam-video-button" style="display:none" type="button" class="btn btn-success btn-block btn-sm download-button">Download cam video</a>
+					<a id="dl-csv-button" style="display:none" type="button" class="btn btn-success btn-block btn-sm download-button">Download data</a>
+					<div id="error-text" class="error-text" style="display:none">Error text here</div>
+				<form>
+					<div class="row no-gutters">
+				    <label for="moves-text-area">Moves go here</label>
+				    <textarea class="form-control moves-ta" id="moves-text-area" rows="8"></textarea>
+				  </div>
+				  <div class="row no-gutters justify-content-end">
+						<button id="launch-button" type="button" class="btn btn-primary btn-block">Launch</button>
+						<button id="stop-button" type="button" class="btn btn-warning btn-block">Stop</button>
+					</div>
+				</form>
+			</div>
+			<div class="col-8">
+			  <div class="row justify-content-center no-gutters ">
+			  	<div class="col-12 video-div">
+					  <img id="image1" class="img-fluid">
+					</div>
+				</div>
+				<div class="row no-gutters">
+					<div id="height-graph" class="graph w-100" style="width:600px;height:250px;"></div>
+				</div>
+			</div>
+			<div class="col-2">
+				<div class="row justify-content-center no-gutters">
+					<table class="table table-striped data-table">
+						<tbody>
+					    <tr>
+					      <th scope="row">Last command</th>
+				  	    <td id="command-cell">n/a</td>
+				    	</tr>
+					    <tr>
+					      <th scope="row">Height</th>
+				  	    <td id="height-cell">n/a</td>
+				    	</tr>
+				    	<tr>
+				    		<th scope="row">Speed (x)</th>
+				    		<td id="speed-x-cell">n/a</td>
+				    	</tr>
+				    	<tr>
+				    		<th scope="row">Speed (y)</th>
+				    		<td id="speed-y-cell">n/a</td>
+				    	</tr>
+				    	<tr>
+				    		<th scope="row">Speed (z)</th>
+				    		<td id="speed-z-cell">n/a</td>
+				    	</tr>
+				    	<tr>
+				    		<th scope="row">Yaw (rotation)</th>
+				    		<td id="yaw-cell">n/a</td>
+				    	</tr>
+				    	<tr>
+				    		<th scope="row">Pitch</th>
+				    		<td id="pitch-cell">n/a</td>
+				    	</tr>
+				    	<tr>
+				    		<th scope="row">Roll</th>
+				    		<td id="roll-cell">n/a</td>
+				    	</tr>
+				    	<tr>
+				    		<th scope="row">Battery</th>
+				    		<td id="battery-cell">n/a</td>
+				    	</tr>
+				  	</tbody>
+					</table>
+				</div>
+			</div>
+		</div>
 	</div>
-	<button id="launch-button" type="button" class="btn btn-primary">Launch</button>
-	<button id="stop-button" type="button" class="btn btn-warning">Stop</button>
-	<button id="emergency-stop-button" type="button" class="btn btn-danger">Emergency Stop</button>
-  <img id="image1">
-</body>
-</html>
+	</body>
+	</html>

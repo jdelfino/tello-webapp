@@ -1,0 +1,33 @@
+.emergency-button {
+	height: 200px;
+}
+
+.download-button {
+	min-height: 50px;
+	white-space: normal;
+}
+
+.graph {
+}
+
+.error-text {
+	font-size: .8rem;
+	color: red;
+	font-weight: bold;
+}
+
+.moves-ta {
+	margin-bottom: 8px;
+}
+
+.button-div {
+	min-height: 200px;
+}
+
+.data-table {
+	font-size: .8rem
+}
+
+.video-div {
+	max-height: 50%;
+}

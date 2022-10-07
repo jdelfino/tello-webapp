@@ -6,6 +6,7 @@ import queue
 import os
 import time
 import logging
+import asyncio
 
 from djitellopy import Tello
 
@@ -110,8 +111,8 @@ class QueueDispatcher(Thread):
 		self.event = event
 		self.queue = queue
 
-	def run(self):
-		while not self.event.is_set():
+	async def run(self):
+		while True:
 			try:
 				d = self.queue.get(True, 1)
 				self.handle_fn(d, self.flier)
@@ -194,71 +195,56 @@ class TelloThread:
 	def start_flight(
 		self,
 		fps,
-		output_dir,
-		drone_video_handler = None,
-		cam_video_handler = None,
-		data_handler = None):
+		output_dir):
 
 		os.makedirs(output_dir, exist_ok=True)
 
-		self.tello = Tello()
-		event = Event()
-
-		dvd = None
-		dvm = None
-		if drone_video_handler is not None:
-			dvd = QueueDispatcher(queue.SimpleQueue(), drone_video_handler, self.tello, event)
-			dvd.start()
-			dvm = monitor.DroneVideoMonitor(output_dir, fps, dvd.queue if dvd else None)
-
-		cvd = None
-		cvm = None
-		if cam_video_handler is not None:
-			cvd = QueueDispatcher(queue.SimpleQueue(), cam_video_handler, self.tello, event)
-			cvd.start()
-			cvm = monitor.WebcamVideoMonitor(output_dir, fps, WEBCAM_SRC, cvd.queue if cvd else None)
-
-		dd = None
-		dm = None
-		if data_handler is not None:
-			dd = QueueDispatcher(queue.SimpleQueue(), data_handler, self.tello, event)
-			dd.start()
-			dm = monitor.DataMonitor(output_dir, fps, dd.queue if dd else None)
-
-		combiner = None
-		if dvm and cvm and dm:
-			combiner = monitor.CombinedPostprocessor(output_dir, dvm, cvm, dm)
-
-		self.monitor = monitor.DroneMonitor([dvm, cvm, dm], [combiner])
-
+		self.tello = Tello(retry_count=2)
 		self.tello.connect()
-		self.monitor.start(self.tello, fps)
-		print("monitoring has started")
+		self.tello.streamon()
 
+		event = Event()
+		start_time = time.time()
+
+		dvm = monitor.VideoMonitor(self.tello.get_udp_video_address(), start_time, fps, event)
+		cvm = monitor.VideoMonitor(WEBCAM_SRC, start_time, fps, event)
+		dm = monitor.DataMonitor(start_time, fps, self.tello, event)
+
+		drone_frame_accum = monitor.FrameAccumulator().attach(dvm)
+		cam_frame_accum = monitor.FrameAccumulator().attach(cvm)
+		data_accum = monitor.FrameAccumulator().attach(dm)
+
+		drone_video_writer = monitor.VideoWriter(output_dir + '/drone_video.mp4', fps).attach(dvm)
+		cam_video_writer = monitor.VideoWriter(output_dir + '/cam_video.mp4', fps).attach(cvm)
+		data_writer = monitor.DataWriter(os.path.join(output_dir, 'data.csv')).attach(dm)
+
+		threads = [x for x in [
+			dvm, cvm, dm,
+			drone_frame_accum, cam_frame_accum, data_accum,
+			drone_video_writer, cam_video_writer, data_writer
+		] if x is not None]
+		combiner = monitor.CombinedPostprocessor(output_dir, drone_frame_accum, cam_frame_accum, data_accum)
+
+		for t in threads:
+			t.start()
+
+		time.sleep(5)
 		try:
 			print("yielding")
-			yield (self.tello, self.monitor)
+			yield (self.tello, dvm, cvm, dm)
+
 		except Exception as e:
 			log.exception("Exception in flight execution")
 			raise
-		finally:
-			print("finally block after execution")
-			event.set()
-			if dvd:
-				dvd.join()
-				print("dvd joined")
-			if cvd:
-				cvd.join()
-				print("cvd joined")
-			if dd:
-				dd.join()
-				print("dd joined")
 
-			print("handlers finished")
-			self.monitor.stop()
+		finally:
+			event.set()
+			for t in threads:
+				t.join()
+
+			combiner.process()
 			print("monitor finished")
+
 			self.tello.end()
 			print("tello ended")
-
-			self.monitor = None
 			self.tello = None
