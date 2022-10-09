@@ -112,7 +112,25 @@ document.addEventListener("DOMContentLoaded", function(event) {
   })
 
   socket.on("connect_error", (err) => {
-  console.log(`connect_error due to ${err.message}`);
+    console.log(`connect_error due to ${err.message}`);
+  });
+
+  socket.on("wifi_status", function(msg){
+    wifi_obj = document.getElementById('wifi-status');
+    let val = msg['ssid'];
+    let color = 'black';
+    let fontw = 'normal';
+    let bgcolor = 'white'
+    if(!val) {
+      val = "Not connected";
+      color = 'white';
+      fontw = 'bold';
+      bgcolor = 'red';
+    }
+    wifi_obj.textContent = val;
+    wifi_obj.style.color = color;
+    wifi_obj.style['background-color'] = bgcolor;
+    wifi_obj.style['font-weight'] = fontw;
   });
 
   commands_text_area = document.getElementById('moves-text-area');

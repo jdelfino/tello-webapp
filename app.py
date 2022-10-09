@@ -6,8 +6,10 @@ import logging
 import base64
 import cv2
 import queue
+import sys
+import subprocess
 
-import tello_subprocess
+import tellomonitor.monitor as monitor
 
 logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger(__name__)
@@ -16,8 +18,7 @@ logging.getLogger('werkzeug').setLevel(logging.WARN)
 app = Flask(__name__)
 socketio = SocketIO(app)
 program_thread = Thread()
-
-t = tello_subprocess.TelloThread()
+tello_handle = None
 
 @app.route('/')
 def index():
@@ -32,40 +33,31 @@ def socket_emit_drone_video(frame):
 	encoded_jpg = base64.encodebytes(jpg).decode("utf-8")
 	socketio.emit("VS", encoded_jpg)
 
-class FrameHandler(Thread):
+
+class FrameHandler(monitor.BaseProcessor):
 	def __init__(self, handle_fn):
 		super().__init__()
 		self.in_queue = queue.Queue()
 		self.handle_fn = handle_fn
 
-	def attach(self, frame_generator):
-		frame_generator.register_output(self.in_queue)
-		return self
+	def handle_frame(self, frame):
+		self.handle_fn(frame)
 
-	def run(self):
-		while True:
-			frame = self.in_queue.get()
-			if frame is None:
-				break
-			self.handle_fn(frame)
 
 def fly(lines):
-	global t
+	global tello_handle
 	now = time.strftime("%Y-%m-%d_%H-%M-%S")
 
 	outdir = 'flights/{}'.format(now)
 	try:
-		with t.start_flight(
-			output_dir=outdir,
-			fps = 15) as (tello, drone_video_monitor, cam_video_monitor, data_monitor):
+		with monitor.start_flight(
+			output_dir = outdir,
+			fps = 30) as (tello, drone_video_monitor, cam_video_monitor, data_monitor):
 
-			f = FrameHandler(lambda x: socketio.emit('data', x[0]))
-			f.attach(data_monitor)
-			f.start()
-
-			f2 = FrameHandler(socket_emit_drone_video)
-			f2.attach(drone_video_monitor)
-			f2.start()
+			global tello_handle
+			tello_handle = tello
+			data_monitor.attach(FrameHandler(lambda x: socketio.emit('data', x[0])))
+			drone_video_monitor.attach(FrameHandler(socket_emit_drone_video))
 
 			for line in lines:
 				line = line.strip()
@@ -79,13 +71,7 @@ def fly(lines):
 					tello.land()
 				else:
 					tello.send_control_command(line)
-			'''
-			print("sending takeoff")
-			tello.takeoff()
-			print("takeoff finished")
-			tello.move_up(50)
-			tello.land()
-			'''
+
 		socketio.emit('flight_finished', {
 			'drone_video': outdir + '/drone_video.mp4',
 			'cam_video': outdir + '/cam_video.mp4',
@@ -94,6 +80,8 @@ def fly(lines):
 	except Exception as e:
 		log.exception("Flight failed")
 		socketio.emit('flight_failed', {'msg': str(e)})
+	finally:
+		tello_handle = None
 
 	print("Finished")
 
@@ -109,50 +97,39 @@ def launch(json):
 
 @socketio.on('stop')
 def abort(json):
-	t.stop()
-	print("stopped")
+	global tello_handle
+	if tello_handle:
+		tello_handle.stop()
+		print("stopped")
 
 @socketio.on('emergency_stop')
 def abort(json):
-	t.emergency()
-	print("emergency stopped")
+	global tello_handle
+	if tello_handle:
+		tello_handle.emergency()
+		print("emergency stopped")
 
 @socketio.on('connect')
 def test_connect():
-	global t
 	emit('after connect',  {'data':'Lets dance'})
+
+def update_wifi_status():
+	time.sleep(10)
+	while True:
+		ap = None
+		if sys.platform == 'linux':
+			ap = subprocess.check_output(['iwgetid', 'wlan0', '--raw'], text=True).strip()
+		elif sys.platform == 'darwin':
+			info = subprocess.check_output(['/System/Library/PrivateFrameworks/Apple80211.framework/Resources/airport', '-I'], text=True).split('\n')
+			ssid_line = [x.strip() for x in info if ' SSID:' in x]
+			if len(ssid_line):
+				ap = ssid_line[0].split(':')[1].strip()
+		socketio.emit('wifi_status', {'ssid': ap})
+		time.sleep(5)
 
 if __name__ == '__main__':
 	print("Serving...")
+	t = Thread(target=update_wifi_status)
+	t.start()
 	socketio.run(app, host="0.0.0.0")
 
-
-
-'''
-class FrameBuffer(Thread):
-	def __init__(self):
-		super().__init__()
-		self.in_queue = queue.Queue()
-
-	def attach(self, frame_generator):
-		frame_generator.register_output(self.in_queue)
-		return self
-
-	def run(self):
-		pass
-
-	def gen(self):
-		while True:
-			frame = self.in_queue.get()
-			if frame is None:
-				break
-			(flag, jpg) = cv2.imencode('.jpg', frame[0])
-			yield (b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' + bytearray(jpg) + b'\r\n')
-
-
-fb = FrameBuffer()
-@app.route('/drone_video')
-def drone_video():
-       global vf
-       return Response(fb.gen(), mimetype="multipart/x-mixed-replace; boundary=frame")
-'''
