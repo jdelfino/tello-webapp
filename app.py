@@ -118,7 +118,7 @@ def update_wifi_status():
 	while True:
 		ap = None
 		if sys.platform == 'linux':
-			ap = subprocess.check_output(['iwgetid', 'wlan0', '--raw'], text=True).strip()
+			ap = subprocess.check_output(['iwgetid', 'wlan1', '--raw'], text=True).strip()
 		elif sys.platform == 'darwin':
 			info = subprocess.check_output(['/System/Library/PrivateFrameworks/Apple80211.framework/Resources/airport', '-I'], text=True).split('\n')
 			ssid_line = [x.strip() for x in info if ' SSID:' in x]
