@@ -1,5 +1,5 @@
 document.addEventListener("DOMContentLoaded", function(event) {
-  var socket = io.connect('http://127.0.0.1:5000');
+  var socket = io.connect();
   console.log("connected")
 
   const image_element=document.getElementById('image1');
