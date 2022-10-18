@@ -1,0 +1,28 @@
+{% macro streamed() -%}
+<script type="text/javascript">
+	document.addEventListener("DOMContentLoaded", function(event) {
+	  if(!socket) { socket = io.connect(); }
+
+	  socket.on('drone_video_frame', function (data) {
+	    if(drone_video_img) {
+	      drone_video_img.src = "data:image/jpeg;base64," + data;
+	    }
+	  });
+	});
+</script>
+<div class="row no-gutters video-row">
+	<div class="col-12 text-center h-100">
+		<img id="drone-video" class="img-fluid h-100">
+	</div>
+</div>
+{%- endmacro %}
+
+{% macro static(date, filename) -%}
+<div class="row no-gutters video-row">
+	<div class="col-12 text-center h-100">
+		<video class="h-100" preload="preload" controls="controls">
+			<source src="{{ url_for('send_flight', date=date, filename='drone_video.mp4') }}" type="video/mp4"></source>
+		</video>
+	</div>
+</div>
+{%- endmacro %}

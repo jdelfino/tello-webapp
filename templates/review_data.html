@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+
+{% block content %}
+{% import 'video.html' as video %}
+{{ video.static(date, filename) }}
+{% import 'graph.html' as graph %}
+{{ graph.deps() }}
+{{ graph.graph('height-graph', 'height_cm', True ) }}
+{{ graph.graph('speed-z-graph', 'speed_z', True ) }}
+{% endblock %}

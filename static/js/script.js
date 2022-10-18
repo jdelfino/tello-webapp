@@ -1,54 +1,15 @@
+var socket = null;
+
 document.addEventListener("DOMContentLoaded", function(event) {
-  var socket = io.connect();
+  if(!socket) { socket = io.connect(); }
   console.log("connected")
 
-  const image_element=document.getElementById('image1');
-
-  socket.on('VS', function (data) {
-      image_element.src="data:image/jpeg;base64," + data;
-   });
-
-  socket.on('update value', function(msg) {
-    console.log('value updated', msg);
-    document.getElementById('#counter').textContent = msg.msg
-  });
-
-  height_graph_div = document.getElementById('height-graph');
-  console.log(height_graph_div);
-  height_plot = Plotly.newPlot(height_graph_div,
-    [{ x: [], y: [] }],
-    {
-      xaxis: {
-        rangemode: 'nonnegative',
-        autorange: true
-      },
-      margin: { t: 0 },
-    }
-  );
-
-  socket.on('data', function(msg) {
-    document.querySelector('#height-cell').textContent = msg['height_cm'];
-    Plotly.extendTraces(height_graph_div, {
-      x: [[msg['time_s']]],
-      y: [[msg['height_cm']]]
-    }, [0]);
-    document.querySelector('#speed-x-cell').textContent = msg['speed_x'];
-    document.querySelector('#speed-y-cell').textContent = msg['speed_y'];
-    document.querySelector('#speed-z-cell').textContent = msg['speed_z'];
-    document.querySelector('#pitch-cell').textContent = msg['pitch'];
-    document.querySelector('#yaw-cell').textContent = msg['yaw'];
-    document.querySelector('#roll-cell').textContent = msg['roll'];
-    document.querySelector('#battery-cell').textContent = msg['battery'];
-    if(msg['command']){
-      document.querySelector('#command-cell').textContent = msg['command'] + " (" + Math.round(msg['time_s']) + ")";
-    }
-  });
-
-  emergency_stop_button = document.getElementById('emergency-stop-button');
-  drone_video_button = document.getElementById('dl-drone-video-button');
-  cam_video_button = document.getElementById('dl-cam-video-button');
-  data_button = document.getElementById('dl-csv-button');
-  error_text = document.getElementById('error-text');
+  let drone_video_img = document.getElementById('drone-video');
+  let emergency_stop_button = document.getElementById('emergency-stop-button');
+  let drone_video_button = document.getElementById('dl-drone-video-button');
+  let cam_video_button = document.getElementById('dl-cam-video-button');
+  let data_button = document.getElementById('dl-csv-button');
+  let error_text = document.getElementById('error-text');
 
   function show_emergency_stop_button() {
     emergency_stop_button.style.display = "block";
@@ -75,8 +36,7 @@ document.addEventListener("DOMContentLoaded", function(event) {
   }
 
   socket.on('flight_finished', function(msg) {
-    console.log("flight finished");
-    console.log(msg);
+    console.log("flight finished", msg);
     show_download_buttons();
 
     if('drone_video' in msg) {
@@ -108,7 +68,6 @@ document.addEventListener("DOMContentLoaded", function(event) {
   });
 
   socket.on('after connect', function(msg){
-    console.log('After connect', msg);
   })
 
   socket.on("connect_error", (err) => {
@@ -120,7 +79,7 @@ document.addEventListener("DOMContentLoaded", function(event) {
     let val = msg['ssid'];
     let color = 'black';
     let fontw = 'normal';
-    let bgcolor = 'white'
+    let bgcolor = 'transparent'
     if(!val) {
       val = "Not connected";
       color = 'white';
@@ -133,25 +92,39 @@ document.addEventListener("DOMContentLoaded", function(event) {
     wifi_obj.style['font-weight'] = fontw;
   });
 
-  commands_text_area = document.getElementById('moves-text-area');
-  commands_text_area.value = localStorage.getItem('moves-text-area');
-
-  document.querySelector('#launch-button').addEventListener("click", function () {
+  document.querySelector('#launch-button')?.addEventListener("click", function () {
     show_emergency_stop_button();
 
-    socket.emit('launch', {'moves': commands_text_area.value});
+    socket.emit('launch', {
+      'moves': commands_text_area.value,
+      'stream_drone_video': drone_video_img ? true : false,
+      'record_webcam': true,
+      'record_drone': true
+    });
   });
 
-  document.querySelector('#stop-button').addEventListener("click", function () {
+  document.querySelector('#launch-wait-button')?.addEventListener("click", function () {
+    show_emergency_stop_button();
+
+    socket.emit('launch', {
+      'wait': true,
+      'stream_drone_video': drone_video_img ? true : false,
+      'record_drone': true,
+      'record_webcam': true
+    });
+  });
+
+  document.querySelectorAll('.command-btn').forEach((element) => {
+    element.addEventListener("click", function (event) {
+      socket.emit('move', {'command': event.target.dataset.command});
+    });
+  });
+
+  document.querySelector('#stop-button')?.addEventListener("click", function () {
     socket.emit('stop', {});
   });
 
-  document.querySelector('#emergency-stop-button').addEventListener("click", function () {
+  document.querySelector('#emergency-stop-button')?.addEventListener("click", function () {
     socket.emit('emergency_stop', {});
   });
-});
-
-window.addEventListener("beforeunload", function(){
-  commands_text_area = document.getElementById('moves-text-area');
-  localStorage.setItem('moves-text-area', commands_text_area.value);
 });

@@ -1,0 +1,74 @@
+<script type="text/javascript">
+document.addEventListener("DOMContentLoaded", function(event) {
+  if(!socket) {
+    socket = io.connect();
+  }
+
+  let height_cell = document.querySelector('#height-cell');
+  let speed_x_cell = document.querySelector('#speed-x-cell');
+  let speed_y_cell = document.querySelector('#speed-y-cell');
+  let speed_z_cell = document.querySelector('#speed-z-cell');
+  let pitch_cell = document.querySelector('#pitch-cell');
+  let yaw_cell = document.querySelector('#yaw-cell');
+  let roll_cell = document.querySelector('#roll-cell');
+  let battery_cell = document.querySelector('#battery-cell');
+  let command_cell = document.querySelector('#command-cell');
+
+  socket.on('data', function(msg) {
+    if(height_cell) { height_cell.textContent = msg['height_cm'] };
+    if(speed_x_cell) { speed_x_cell.textContent = msg['speed_x'] };
+    if(speed_y_cell) { speed_y_cell.textContent = msg['speed_y'] };
+    if(speed_z_cell) { speed_z_cell.textContent = msg['speed_z'] };
+    if(pitch_cell) { pitch_cell.textContent = msg['pitch'] };
+    if(yaw_cell) { yaw_cell.textContent = msg['yaw'] };
+    if(roll_cell) { roll_cell.textContent = msg['roll'] };
+    if(battery_cell) { battery_cell.textContent = msg['battery'] };
+
+    if(msg['command']){
+      command_cell.textContent = msg['command'] + " (" + Math.round(msg['time_s']) + ")";
+    }
+  });
+});
+</script>
+<div class="row justify-content-center no-gutters">
+  <table class="table table-striped data-table">
+    <tbody>
+      <tr>
+        <th scope="row">Last command</th>
+        <td id="command-cell">n/a</td>
+      </tr>
+      <tr>
+        <th scope="row">Height</th>
+        <td id="height-cell">n/a</td>
+      </tr>
+      <tr>
+        <th scope="row">Speed (x)</th>
+        <td id="speed-x-cell">n/a</td>
+      </tr>
+      <tr>
+        <th scope="row">Speed (y)</th>
+        <td id="speed-y-cell">n/a</td>
+      </tr>
+      <tr>
+        <th scope="row">Speed (z)</th>
+        <td id="speed-z-cell">n/a</td>
+      </tr>
+      <tr>
+        <th scope="row">Yaw (rotation)</th>
+        <td id="yaw-cell">n/a</td>
+      </tr>
+      <tr>
+        <th scope="row">Pitch</th>
+        <td id="pitch-cell">n/a</td>
+      </tr>
+      <tr>
+        <th scope="row">Roll</th>
+        <td id="roll-cell">n/a</td>
+      </tr>
+      <tr>
+        <th scope="row">Battery</th>
+        <td id="battery-cell">n/a</td>
+      </tr>
+    </tbody>
+  </table>
+</div>

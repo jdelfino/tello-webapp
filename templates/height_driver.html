@@ -1,17 +1,26 @@
 {% extends "two_column.html" %}
 
 {% block left_column %}
+<button id="emergency-stop-button" style="display:none" type="button" class="btn btn-danger btn-block emergency-button">Emergency Stop</button>
 <a id="dl-drone-video-button" style="display:none" type="button" class="btn btn-success btn-block btn-sm download-button">Download drone video</a>
 <a id="dl-cam-video-button" style="display:none" type="button" class="btn btn-success btn-block btn-sm download-button">Download cam video</a>
 <a id="dl-csv-button" style="display:none" type="button" class="btn btn-success btn-block btn-sm download-button">Download data</a>
-{% include "command_list_driver.html" %}
+{% include "up_down_driver.html" %}
 {% endblock %}
 
 {% block main_content %}
-{% import "video.html" as video %}
-{{ video.streamed() }}
+<div class="row justify-content-center no-gutters ">
+	<div class="col-12 text-center height-header">
+		<h2>Height: <span id="height-cell"></span></h2>
+	</div>
+</div>
 {% import 'graph.html' as graph %}
 {{ graph.deps() }}
 {{ graph.graph('height-graph', 'height_cm', False ) }}
-{% include "data_table.html" %}
+<div class="row justify-content-center no-gutters ">
+	<div class="col-12 text-center height-header">
+		<h2>Speed: <span id="speed-z-cell"></span></h2>
+	</div>
+</div>
+{{ graph.graph('speed-z-graph', 'speed_z', False ) }}
 {% endblock %}

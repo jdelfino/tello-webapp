@@ -1,0 +1,31 @@
+<script type="text/javascript">
+	document.addEventListener("DOMContentLoaded", function(event) {
+
+		let commands_text_area = document.getElementById('moves-text-area');
+
+		if(commands_text_area) {
+			commands_text_area.value = localStorage.getItem('moves-text-area');
+		}
+
+	});
+
+	window.addEventListener("beforeunload", function(){
+		commands_text_area = document.getElementById('moves-text-area');
+		if(commands_text_area) {
+			localStorage.setItem('moves-text-area', commands_text_area.value);
+		}
+	});
+
+</script>
+<button id="emergency-stop-button" style="display:none" type="button" class="btn btn-danger btn-block emergency-button">Emergency Stop</button>
+<div id="error-text" class="error-text" style="display:none">Error text here</div>
+<form>
+	<div class="row no-gutters">
+		<label for="moves-text-area">Moves go here</label>
+		<textarea class="form-control moves-ta" id="moves-text-area" rows="8"></textarea>
+	</div>
+	<div class="row no-gutters justify-content-end">
+		<button id="launch-button" type="button" class="btn btn-primary btn-block">Launch</button>
+		<button id="stop-button" type="button" class="btn btn-warning btn-block">Stop</button>
+	</div>
+</form>

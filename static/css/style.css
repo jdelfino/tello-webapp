@@ -7,7 +7,7 @@
 	white-space: normal;
 }
 
-.graph {
+.height-graph {
 }
 
 .error-text {
@@ -28,6 +28,12 @@
 	font-size: .8rem
 }
 
-.video-div {
-	max-height: 50%;
+.video-row {
+	height: 50vh;
+}
+
+.header-row {
+    background-color: grey;
+    box-shadow: 0px 3px 3px darkslategrey;
+    margin-bottom: 8px;
 }

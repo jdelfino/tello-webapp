@@ -1,0 +1,109 @@
+{% macro deps() -%}
+<script type="text/javascript">
+	function make_command_annotation(time_s, command) {
+		new_annotation = {
+			x: time_s,
+			yref: 'paper',
+			y: 0.9,
+			xanchor: 'right',
+			yanchor: 'bottom',
+			text: command,
+			textangle: 45,
+			showarrow: false
+		};
+		new_shape = {
+			type: 'line',
+			x0: time_s,
+			x1: time_s,
+			y0: 0,
+			y1: 1,
+			yref: 'paper',
+			line: {
+				dash: 'dot',
+				width: 1,
+				color: 'lightslategrey'
+			}
+		};
+		return [new_annotation, new_shape];
+	}
+
+	function add_command_annotation(graph_div, new_annotation, new_shape) {
+		ann_index = (graph_div.layout.annotations || []).length
+		shape_index = (graph_div.layout.shapes || []).length
+
+		Plotly.relayout(graph_div, {
+			[`annotations[${ann_index}]`]: new_annotation,
+			[`shapes[${shape_index}]`]: new_shape,
+		});
+	}
+
+	function new_plot(graph_div, data_series, annotations, shapes) {
+		console.log("new plot", graph_div)
+		Plotly.newPlot(graph_div,
+			data = data_series,
+			layout = {
+				xaxis: {
+					rangemode: 'nonnegative',
+					autorange: true
+				},
+				margin: { t: 50 },
+				annotations: annotations,
+				shapes: shapes,
+				height: 300,
+			},
+			config = {responsive: true}
+		);
+	}
+</script>
+{%- endmacro %}
+
+{% macro graph(div_name, series, static) -%}
+
+<script type="text/javascript">
+	document.addEventListener("DOMContentLoaded", function(event) {
+	  if(!socket) { socket = io.connect(); }
+
+	  data = [{'x': [], 'y': [] }];
+	  if(data_series) {
+	  	console.log("setting data series", data_series)
+	  	data[0]['x'] = data_series['time_s'];
+	  	data[0]['y'] = data_series['{{ series }}'];
+	  }
+	  console.log("init chart with data", data)
+	  annotations = [];
+	  shapes = [];
+	  if({{ static|tojson }}) {
+	  	for(let i = 0; i < data_series['time_s'].length; i++) {
+	  		if(!data_series['command'][i]) { continue; }
+	  			const [a, s] = make_command_annotation(data_series['time_s'][i], data_series['command'][i]);
+	  			annotations.push(a);
+	  			shapes.push(s);
+	  	}
+	  }
+
+		let graph_div = document.getElementById('{{ div_name }}');
+	  new_plot(graph_div, data, annotations, shapes);
+
+	  if(! {{ static|tojson }}) {
+			socket.on('data', function(msg) {
+				Plotly.extendTraces(graph_div, {
+					x: [[msg['time_s']]],
+					y: [[msg['{{ series }}']]]
+				}, [0]);
+
+				if(msg['command']){
+					if(graph_div) {
+						const [a, s] = make_command_annotation(msg['time_s'], msg['command']);
+						add_command_annotation(graph_div, a, s);
+					}
+				}
+			});
+		}
+	});
+</script>
+
+<div class="row no-gutters">
+	<div id="{{ div_name }}" class="graph w-100"></div>
+</div>
+
+{%- endmacro %}

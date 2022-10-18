@@ -1,0 +1,73 @@
+{% macro graph(series) -%}
+
+<script type="text/javascript">
+	function add_annotation(graph_div, time_s, command) {
+		ann_index = (graph_div.layout.annotations || []).length
+		shape_index = (graph_div.layout.shapes || []).length
+		new_annotation = {
+			x: time_s,
+			yref: 'paper',
+			y: 0.9,
+			xanchor: 'right',
+			yanchor: 'bottom',
+			text: command,
+			textangle: 45,
+			showarrow: false
+		};
+		new_shape = {
+			type: 'line',
+			x0: time_s,
+			x1: time_s,
+			y0: 0,
+			y1: 1,
+			yref: 'paper',
+			line: {
+				dash: 'dot',
+				width: 1,
+				color: 'lightslategrey'
+			}
+		};
+		Plotly.relayout(graph_div, {
+			[`annotations[${ann_index}]`]: new_annotation,
+			[`shapes[${shape_index}]`]: new_shape,
+		});
+	}
+
+	document.addEventListener("DOMContentLoaded", function(event) {
+	  if(!socket) { socket = io.connect(); }
+
+		let graph_div = document.getElementById('graph');
+
+		Plotly.newPlot(graph_div,
+			data = [
+					{ x: [], y: [] },
+					data_series ? { x: data_series['time_s'], y: data_series[{{ series }}]} : {}
+			],
+			layout = {
+				xaxis: {
+					rangemode: 'nonnegative',
+					autorange: true
+				},
+				margin: { t: 0 },
+			},
+			config = {responsive: true}
+		);
+
+		socket.on('data', function(msg) {
+			Plotly.extendTraces(graph_div, {
+				x: [[msg['time_s']]],
+				y: [[msg[{{ series }}]]]
+			}, [0]);
+
+			if(msg['command']){
+				if(height_graph_div) {
+					add_annotation(graph_div, msg['time_s'], msg['command']);
+				}
+			}
+		});
+	});
+</script>
+
+<div class="row no-gutters">
+	<div id="graph" class="graph w-100"></div>
+</div>
