@@ -8,9 +8,11 @@ import queue
 
 DATA_PATH = "static/yolo"
 LABELS_FILE = "coco.names"
+#WEIGHTS_FILE = "yolov3.weights"
+#CFG_FILE = "yolov3.cfg"
 WEIGHTS_FILE = "yolov3-tiny.weights"
 CFG_FILE = "yolov3-tiny.cfg"
-CONFIDENCE = 0.7
+CONFIDENCE = 0.5
 THRESHOLD = 0.3
 
 class DetectedObject:
@@ -58,24 +60,29 @@ class YoloDetector(monitor.BaseImageProcessor):
 		self.net = cv2.dnn.readNetFromDarknet(configPath, weightsPath)
 		print("Loaded YOLO v3")
 
+		self.ln = self.net.getLayerNames()
+		print("1 {}".format(self.ln))
+		self.ln = [self.ln[i - 1] for i in self.net.getUnconnectedOutLayers()]
+		print("2 {}".format(self.ln))
+
 		np.random.seed(42)
 		self.colors = np.random.randint(0, 255, size=(len(self.labels) + 1, 3), dtype="uint8")
 
 	def detect(self, image):
+		if not self.tello.is_flying:
+			return
+
 		real_start = time.time()
 		(H, W) = image.shape[:2]
 
-		ln = self.net.getLayerNames()
-		ln = [ln[i - 1] for i in self.net.getUnconnectedOutLayers()]
-
-		blob = cv2.dnn.blobFromImage(image, 1 / 255.0, (416, 416),
+		blob = cv2.dnn.blobFromImage(image, 1 / 255.0, (320, 320),
 			swapRB=True, crop=False)
 		self.net.setInput(blob)
 		start = time.time()
-		layerOutputs = self.net.forward(ln)
+		layerOutputs = self.net.forward(self.ln)
 		end = time.time()
 
-		print("[INFO] YOLO took {:.6f} seconds".format(end - start))
+		#print("[INFO] YOLO took {:.6f} seconds".format(end - start))
 
 		boxes = []
 		confidences = []
@@ -88,12 +95,10 @@ class YoloDetector(monitor.BaseImageProcessor):
 				# extract the class ID and confidence (i.e., probability) of
 				# the current object detection
 				scores = detection[5:]
-				print("got scores {}".format(scores))
 				classID = np.argmax(scores)
 				confidence = scores[classID]
 				# filter out weak predictions by ensuring the detected
 				# probability is greater than the minimum probability
-				print("found something with confidence {}".format(confidence))
 				if confidence > CONFIDENCE:
 					# scale the bounding box coordinates back relative to the
 					# size of the image
@@ -110,8 +115,8 @@ class YoloDetector(monitor.BaseImageProcessor):
 			return
 
 		to_display = [detected_objects[i] for i in idxs.flatten()]
-		matches = to_display
-		#matches = [o for o in to_display if o.label == 'person']
+		#matches = to_display
+		matches = [o for o in to_display if o.label == 'person']
 
 		if len(matches) == 0:
 			return
@@ -124,25 +129,38 @@ class YoloDetector(monitor.BaseImageProcessor):
 			else:
 				obj.draw_on_image(image)
 
-		print("[INFO] Full detection took {:.6f} seconds".format(time.time() - real_start))
+		#print("[INFO] Full detection took {:.6f} seconds".format(time.time() - real_start))
 
 		self.follow_banana(matches[0], W, H)
 
 	def follow_banana(self, banana, img_width, img_height):
-		img_center = img_width / 2
-		center_offset = banana.center_x - img_center
-		degrees_off_center = int(45 * (center_offset / img_center))
+		vert_img_center = img_width / 2
+		vert_center_offset = banana.center_x - vert_img_center
+		vert_degrees_off_center = int(45 * (vert_center_offset / vert_img_center))
 
-		print("img_center: {} center_offset: {} degrees_off_center: {}".format(img_center, center_offset, degrees_off_center))
-		if abs(degrees_off_center) > 15:
-			if degrees_off_center < 0:
-				print("ccw {}".format(degrees_off_center * -1))
+		horz_img_center = img_height / 4
+		horz_center_offset = banana.top_y - horz_img_center
+		horz_degrees_off_center = int(45 * (horz_center_offset / horz_img_center))
+
+		if abs(horz_degrees_off_center) > abs(vert_degrees_off_center) and abs(horz_degrees_off_center) > 10:
+			if horz_center_offset < 0:
+				print("up 20")
 				if MOVE:
-					self.tello.rotate_counter_clockwise(degrees_off_center * -1)
+					self.move(lambda: self.tello.move_up(20))
 			else:
-				print("cw {}".format(degrees_off_center * -1))
+				print("down 20")
 				if MOVE:
-					self.tello.rotate_clockwise(degrees_off_center)
+					self.move(lambda: self.tello.move_down(20))
 
-MOVE=False
+		elif abs(vert_degrees_off_center) > 10:
+			if vert_degrees_off_center < 0:
+				print("ccw {}".format(vert_degrees_off_center * -1))
+				if MOVE:
+					self.move(lambda: self.tello.rotate_counter_clockwise(vert_degrees_off_center * -1))
+			else:
+				print("cw {}".format(vert_degrees_off_center * -1))
+				if MOVE:
+					self.move(lambda: self.tello.rotate_clockwise(vert_degrees_off_center))
+
+MOVE=True
 monitor.fly_with_image_processing(YoloDetector, fps=15, takeoff=MOVE)
